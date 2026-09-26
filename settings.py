@@ -16,7 +16,7 @@ DATA_DIR = BASE_DIR / "data"
 HIGHSCORE_FILE = DATA_DIR / "highscore.json"
 
 # --- Display ---
-GAME_TITLE = "Feed the Toilet"
+GAME_TITLE = "Poop Catcher"
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
 FPS = 60
@@ -32,17 +32,18 @@ BLACK = (0, 0, 0)
 RED = (220, 40, 40)
 GREEN = (40, 200, 90)
 GOLD = (230, 190, 60)
+BROWN = (217, 165, 22)
 
 # --- Player (Toilet) ---
-TOILET_WIDTH = 200
-TOILET_HEIGHT = 160
+TOILET_WIDTH = 170
+TOILET_HEIGHT = 280
 TOILET_SPEED = 900            # pixels per second
 TOILET_BOTTOM_MARGIN = 40     # gap between toilet sprite and bottom edge
 
 # --- Falling items (width, height) ---
 POOP_SIZE = (55, 55)
-BOTTLE_SIZE = (50, 65)
-RING_SIZE = (45, 45)
+BOTTLE_SIZE = (40, 99)
+RING_SIZE = (40, 40)
 PLUNGER_SIZE = (50, 65)       # reserved for future power-up
 LIFE_ICON_SIZE = (40, 40)
 
@@ -54,7 +55,7 @@ LANE_MARGIN = SCREEN_WIDTH // (NUM_LANES + 1)
 LANE_X_POSITIONS = [LANE_MARGIN * (i + 1) for i in range(NUM_LANES)]
 
 # --- Gameplay ---
-STARTING_LIVES = 3
+STARTING_LIVES = 4
 GOOD_ITEM_SCORE = 10
 BONUS_ITEM_SCORE = 25
 
@@ -104,3 +105,8 @@ DIFFICULTY_MAX_LEVEL = 10              # levels beyond this have no extra effect
 SPEED_INCREASE_PER_LEVEL = 0.08        # +8% fall speed per level
 SPAWN_INTERVAL_DECREASE_PER_LEVEL = 0.06   # -6% spawn interval per level
 MIN_SPAWN_INTERVAL_SCALE = 0.4         # never shrink spawn interval below 40% of base
+
+# --- Audio ---
+SFX_VOLUME = 0.7
+MUSIC_VOLUME = 0.4
+GAME_OVER_SOUND_DELAY = 1.0     # seconds of silence after death, before the game-over sting plays

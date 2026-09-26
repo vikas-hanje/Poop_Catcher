@@ -14,6 +14,7 @@ from game.spawner import Spawner
 from game.scoreboard import Scoreboard
 from game.collisions import resolve_collisions
 from game.ui import HUD
+from game.audio import AudioManager
 
 
 def load_background():
@@ -46,6 +47,7 @@ def main():
 
     background = load_background()
     hud = HUD()
+    audio = AudioManager()
 
     font_path = settings.FONTS_DIR / "Fredoka-Bold.ttf"
     title_font = pygame.font.Font(str(font_path), 110)
@@ -60,6 +62,7 @@ def main():
     running = True
     while running:
         dt = clock.tick(settings.FPS) / 1000  # seconds elapsed since last frame
+        audio.update(dt)  # advances the delayed game-over -> menu-music sequence, if any
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -69,20 +72,36 @@ def main():
                     running = False
                 elif event.key == pygame.K_SPACE and state == "START":
                     state = "PLAYING"
+                    audio.play_sfx("button_click")
                 elif event.key == pygame.K_r and state == "GAME_OVER":
                     toilet, spawner, scoreboard = new_run()
                     state = "PLAYING"
                     just_set_high_score = False
+                    audio.play_sfx("button_click")
 
         if state == "PLAYING":
             keys = pygame.key.get_pressed()
             toilet.handle_input(keys, dt)
             spawner.update(dt, scoreboard.score)
-            resolve_collisions(toilet, spawner, scoreboard)
+            caught = resolve_collisions(toilet, spawner, scoreboard)
+            for item in caught:
+                audio.play_sfx("catch_bad" if item.is_bad else "catch_good")
 
             if scoreboard.is_game_over:
                 just_set_high_score = scoreboard.save_high_score_if_needed()
                 state = "GAME_OVER"
+                audio.trigger_game_over_sequence()
+
+        # Background music follows the current state; play_music() no-ops if
+        # that's already what's playing, so calling this every frame is
+        # cheap and keeps things in sync after any state change. GAME_OVER
+        # is deliberately absent here — its music (silence, then the sting,
+        # then menu music) is driven entirely by trigger_game_over_sequence()
+        # and audio.update() above, not by per-frame state checks.
+        if state == "START":
+            audio.play_music("menu")
+        elif state == "PLAYING":
+            audio.play_music("gameplay")
 
         # Draw the scene every frame regardless of state, so items/toilet
         # stay visible (frozen, or simply idle pre-game) behind the
@@ -104,7 +123,7 @@ def main():
             center_x = settings.SCREEN_WIDTH // 2
             center_y = settings.SCREEN_HEIGHT // 2
 
-            title_surf = title_font.render(settings.GAME_TITLE, True, settings.WHITE)
+            title_surf = title_font.render(settings.GAME_TITLE, True, settings.GOLD)
             screen.blit(title_surf, title_surf.get_rect(center=(center_x, center_y - 140)))
 
             instructions = [
@@ -112,7 +131,7 @@ def main():
                 "Catch poop and cleaning liquid for points — avoid the ring!",
             ]
             for i, line in enumerate(instructions):
-                line_surf = instructions_font.render(line, True, settings.WHITE)
+                line_surf = instructions_font.render(line, True, settings.BROWN)
                 screen.blit(
                     line_surf, line_surf.get_rect(center=(center_x, center_y - 30 + i * 36))
                 )
@@ -136,7 +155,7 @@ def main():
             center_x = settings.SCREEN_WIDTH // 2
             center_y = settings.SCREEN_HEIGHT // 2
 
-            title_surf = game_over_font.render("GAME OVER", True, settings.RED)
+            title_surf = game_over_font.render("GAME OVER!", True, settings.RED)
             screen.blit(title_surf, title_surf.get_rect(center=(center_x, center_y - 60)))
 
             score_line = f"Score: {scoreboard.score}    High Score: {scoreboard.high_score}"
