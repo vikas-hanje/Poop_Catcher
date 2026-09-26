@@ -23,11 +23,23 @@ class AudioManager:
             self.enabled = False
 
         self.sfx = {}
+        # Each named sfx gets its own dedicated Channel (see _load_sfx). We
+        # always play through that channel rather than the generic
+        # Sound.play(), so a new catch_good retriggers cleanly instead of
+        # stacking on top of whatever copies of it are still ringing out —
+        # see play_sfx() for why that matters.
+        self._sfx_channels = {}
+
         self._music_tracks = {
             "menu": settings.SOUNDS_DIR / "menu_music.ogg",
             "gameplay": settings.SOUNDS_DIR / "gameplay_music.ogg",
         }
         self._current_music = None
+
+        # Independent on/off switches the pause menu toggles. Separate from
+        # `enabled`, which reflects whether audio hardware is even present.
+        self.sfx_enabled = True
+        self.music_enabled = True
 
         # State for the delayed "game over -> sting -> menu music" sequence.
         # See trigger_game_over_sequence() / update().
@@ -45,24 +57,69 @@ class AudioManager:
             "game_over": "game_over.wav",
             "button_click": "button_click.wav",
         }
-        for name, filename in sfx_files.items():
+
+        # A plain Sound.play() grabs a free channel from a shared pool, so
+        # during a catch flurry (e.g. high difficulty, several catches per
+        # second) many overlapping copies of the same sound end up mixed
+        # together — their waveforms add up and clip, which is the
+        # "distorted" sound at high traffic. Giving each sfx name its own
+        # reserved channel fixes this: playing on a channel that's already
+        # playing something immediately replaces it instead of layering on
+        # top, so you always hear one clean instance of a sound at a time,
+        # no matter how fast catches come in.
+        pygame.mixer.set_num_channels(max(pygame.mixer.get_num_channels(), 16))
+        pygame.mixer.set_reserved(len(sfx_files))
+
+        for index, (name, filename) in enumerate(sfx_files.items()):
             try:
                 sound = pygame.mixer.Sound(str(settings.SOUNDS_DIR / filename))
                 sound.set_volume(settings.SFX_VOLUME)
                 self.sfx[name] = sound
+                self._sfx_channels[name] = pygame.mixer.Channel(index)
             except pygame.error as e:
                 print(f"[audio] Could not load {filename}: {e}")
 
     def play_sfx(self, name):
-        if not self.enabled:
+        if not self.enabled or not self.sfx_enabled:
             return
         sound = self.sfx.get(name)
-        if sound:
-            sound.play()
+        if sound is None:
+            return
+        channel = self._sfx_channels.get(name)
+        if channel is not None:
+            channel.play(sound)  # replaces whatever this channel was playing, no stacking
+        else:
+            sound.play()  # fallback, shouldn't normally happen
+
+    def toggle_sfx(self):
+        """Flips sound-effect playback on/off. Returns the new state."""
+        self.sfx_enabled = not self.sfx_enabled
+        return self.sfx_enabled
+
+    def toggle_music(self):
+        """
+        Flips music playback on/off. Returns the new state.
+
+        Stops/resumes actual audio immediately, but keeps _current_music
+        pointing at the logical track the rest of the game thinks is
+        playing (e.g. "gameplay"), so turning music back on resumes the
+        right track instantly rather than waiting for the next state-driven
+        play_music() call.
+        """
+        self.music_enabled = not self.music_enabled
+        if self.music_enabled:
+            if self._current_music is not None:
+                self._start_music_playback(self._current_music)
+        else:
+            pygame.mixer.music.stop()
+        return self.music_enabled
 
     def play_music(self, track):
         """
-        track: 'menu' or 'gameplay'. No-ops if that track is already playing.
+        track: 'menu' or 'gameplay'. No-ops if that track is already the
+        logical current track. Silently remembers the track without making
+        sound if music is currently muted — toggle_music() will start it
+        audibly the moment it's unmuted.
 
         Also cancels any in-progress game-over sequence (delayed sting, or
         waiting for the sting to finish before starting menu music) — an
@@ -80,6 +137,11 @@ class AudioManager:
 
         if self._current_music == track:
             return
+        self._current_music = track
+        if self.music_enabled:
+            self._start_music_playback(track)
+
+    def _start_music_playback(self, track):
         path = self._music_tracks.get(track)
         if path is None:
             return
@@ -87,7 +149,6 @@ class AudioManager:
             pygame.mixer.music.load(str(path))
             pygame.mixer.music.set_volume(settings.MUSIC_VOLUME)
             pygame.mixer.music.play(loops=-1)
-            self._current_music = track
         except pygame.error as e:
             print(f"[audio] Could not play music '{track}': {e}")
 
@@ -123,12 +184,21 @@ class AudioManager:
             self._pending_game_over_timer -= dt
             if self._pending_game_over_timer <= 0:
                 self._pending_game_over_timer = None
-                sound = self.sfx.get("game_over")
-                if sound:
-                    self._game_over_channel = sound.play()
-                    self._waiting_for_game_over_to_finish = True
+                if self.sfx_enabled:
+                    sound = self.sfx.get("game_over")
+                    channel = self._sfx_channels.get("game_over")
+                    if sound and channel:
+                        channel.play(sound)
+                        self._game_over_channel = channel
+                        self._waiting_for_game_over_to_finish = True
+                    elif sound:
+                        self._game_over_channel = sound.play()
+                        self._waiting_for_game_over_to_finish = True
+                    else:
+                        # No sting loaded — just go straight to menu music.
+                        self.play_music("menu")
                 else:
-                    # No sting loaded — just go straight to menu music.
+                    # SFX muted: nothing to wait for, skip straight to menu music.
                     self.play_music("menu")
 
         elif self._waiting_for_game_over_to_finish:

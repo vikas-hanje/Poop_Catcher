@@ -15,6 +15,7 @@ from game.scoreboard import Scoreboard
 from game.collisions import resolve_collisions
 from game.ui import HUD
 from game.audio import AudioManager
+from game.pause_menu import PauseMenu
 
 
 def load_background():
@@ -48,6 +49,7 @@ def main():
     background = load_background()
     hud = HUD()
     audio = AudioManager()
+    pause_menu = PauseMenu()
 
     font_path = settings.FONTS_DIR / "Fredoka-Bold.ttf"
     title_font = pygame.font.Font(str(font_path), 110)
@@ -56,7 +58,7 @@ def main():
     instructions_font = pygame.font.Font(str(font_path), 28)
 
     toilet, spawner, scoreboard = new_run()
-    state = "START"  # "START" -> "PLAYING" -> "GAME_OVER" -> ("PLAYING" again on restart)
+    state = "START"  # "START" -> "PLAYING" <-> "PAUSED", "PLAYING" -> "GAME_OVER" -> "PLAYING"
     just_set_high_score = False
 
     running = True
@@ -67,17 +69,52 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
+
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                # Esc pauses/resumes during play, and quits from the start
+                # or game-over screens. Handled as its own branch (rather
+                # than falling through to the PAUSED routing below) so one
+                # Esc press can't both open and instantly close the pause
+                # menu in the same frame.
+                if state == "PLAYING":
+                    state = "PAUSED"
+                    audio.play_sfx("button_click")
+                elif state == "PAUSED":
+                    state = "PLAYING"
+                    audio.play_sfx("button_click")
+                else:
                     running = False
-                elif event.key == pygame.K_SPACE and state == "START":
+
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE and state == "START":
+                state = "PLAYING"
+                audio.play_sfx("button_click")
+
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_r and state == "GAME_OVER":
+                toilet, spawner, scoreboard = new_run()
+                state = "PLAYING"
+                just_set_high_score = False
+                audio.play_sfx("button_click")
+
+            elif state == "PAUSED":
+                # Any other event (keyboard nav, mouse hover/click) while
+                # paused goes to the menu itself.
+                action = pause_menu.handle_event(event, audio)
+                if action == "resume":
                     state = "PLAYING"
                     audio.play_sfx("button_click")
-                elif event.key == pygame.K_r and state == "GAME_OVER":
+                elif action == "sfx":
+                    audio.toggle_sfx()
+                    audio.play_sfx("button_click")  # silently no-ops if SFX just got turned off
+                elif action == "music":
+                    audio.toggle_music()
+                    audio.play_sfx("button_click")
+                elif action == "exit_to_menu":
+                    scoreboard.save_high_score_if_needed()
                     toilet, spawner, scoreboard = new_run()
-                    state = "PLAYING"
-                    just_set_high_score = False
+                    state = "START"
                     audio.play_sfx("button_click")
+                elif action == "exit_game":
+                    running = False
 
         if state == "PLAYING":
             keys = pygame.key.get_pressed()
@@ -102,6 +139,8 @@ def main():
             audio.play_music("menu")
         elif state == "PLAYING":
             audio.play_music("gameplay")
+        # PAUSED deliberately falls through untouched: whatever was already
+        # playing (gameplay music) just keeps looping in the background.
 
         # Draw the scene every frame regardless of state, so items/toilet
         # stay visible (frozen, or simply idle pre-game) behind the
@@ -112,6 +151,9 @@ def main():
 
         if state != "START":
             hud.draw(screen, scoreboard)
+
+        if state == "PAUSED":
+            pause_menu.draw(screen, audio)
 
         if state == "START":
             overlay = pygame.Surface(
