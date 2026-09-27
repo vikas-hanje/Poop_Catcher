@@ -41,3 +41,23 @@ class Toilet:
 
     def draw(self, surface):
         surface.blit(self.image, self.rect)
+
+    @property
+    def collision_rect(self):
+        """
+        The hitbox used for catch detection, instead of the full sprite
+        rect. The toilet art is drawn with its lid open, leaving empty
+        space above the bowl — without this, items were registering a
+        catch the moment they touched the lid rather than the bowl. This
+        trims collision down to the bottom portion of the sprite (see
+        settings.TOILET_COLLISION_HEIGHT_RATIO); self.rect itself (used for
+        drawing and movement) is untouched, so the visible image, and its
+        width/height, stay exactly as configured.
+        """
+        collision_height = round(self.rect.height * settings.TOILET_COLLISION_HEIGHT_RATIO)
+        return pygame.Rect(
+            self.rect.x,
+            self.rect.bottom - collision_height,
+            self.rect.width,
+            collision_height,
+        )

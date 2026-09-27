@@ -40,6 +40,12 @@ TOILET_HEIGHT = 280
 TOILET_SPEED = 900            # pixels per second
 TOILET_BOTTOM_MARGIN = 40     # gap between toilet sprite and bottom edge
 
+# The toilet sprite has its lid drawn open, so the top half of the image is
+# empty space above the bowl. Collision only counts against the bottom
+# portion of the sprite (the actual bowl) — this doesn't affect the drawn
+# image or the toilet's width/height, only where catches are detected.
+TOILET_COLLISION_HEIGHT_RATIO = 0.4
+
 # --- Falling items (width, height) ---
 POOP_SIZE = (55, 55)
 BOTTLE_SIZE = (40, 99)

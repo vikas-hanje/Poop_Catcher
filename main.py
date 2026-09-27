@@ -144,10 +144,14 @@ def main():
 
         # Draw the scene every frame regardless of state, so items/toilet
         # stay visible (frozen, or simply idle pre-game) behind the
-        # start / game-over overlays.
+        # start / game-over overlays. Toilet drawn before the falling items
+        # so items visually pass in front of it (matches the lid-open art,
+        # where the bowl now sits "inside" the silhouette rather than on
+        # top of it) and catches read clearly instead of items vanishing
+        # behind the sprite.
         screen.blit(background, (0, 0))
-        spawner.draw(screen)
         toilet.draw(screen)
+        spawner.draw(screen)
 
         if state != "START":
             hud.draw(screen, scoreboard)

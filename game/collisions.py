@@ -5,7 +5,8 @@ Collision checking between the toilet and falling items.
 
 def resolve_collisions(toilet, spawner, scoreboard):
     """
-    Check the toilet's rect against every currently-falling item's rect
+    Check the toilet's collision_rect (the bowl only, not the full sprite —
+    see Toilet.collision_rect) against every currently-falling item's rect
     with pygame's Rect.colliderect() — the core "does A overlap B" check
     this game is built around.
 
@@ -20,7 +21,7 @@ def resolve_collisions(toilet, spawner, scoreboard):
     remaining = []
 
     for item in spawner.items:
-        if toilet.rect.colliderect(item.rect):
+        if toilet.collision_rect.colliderect(item.rect):
             caught.append(item)
             if item.is_bad:
                 scoreboard.lose_life()
