@@ -22,7 +22,7 @@ SCREEN_HEIGHT = 1080
 FPS = 60
 
 # True = bordered window (easier to debug/alt-tab). False = the real fullscreen build.
-DEV_MODE = True
+DEV_MODE = False
 
 # --- Colors (fallback / debug use only, sprites carry the real look) ---
 WHITE = (255, 255, 255)
