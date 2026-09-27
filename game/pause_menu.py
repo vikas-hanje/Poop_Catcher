@@ -1,12 +1,8 @@
 """
 PauseMenu: the in-game pause overlay. Plain text-and-box buttons, no image
-assets needed. Owns its own mouse hover/click and keyboard up/down/enter
-navigation, and reports back which action (if any) the player picked.
-
-This class only knows about drawing itself and reading input — it doesn't
-touch game state, the scoreboard, or actually toggle audio. main.py owns
-that, by acting on whatever action string this returns. That keeps this
-file a self-contained, reusable UI component.
+assets needed. Handles its own mouse hover/click and keyboard navigation,
+and reports back which action (if any) the player picked — it doesn't
+touch game state or audio itself; main.py acts on the returned action.
 """
 
 import pygame
@@ -53,9 +49,9 @@ class PauseMenu:
     def handle_event(self, event, audio):
         """
         Returns one of PauseMenu.ACTIONS if the player chose it this event,
-        otherwise None. Does not handle Escape — main.py owns the
-        pause/resume toggle itself so a single Esc press can't both open
-        and immediately close this menu in the same frame.
+        else None. Doesn't handle Escape — main.py owns pause/resume
+        directly so a single Esc press can't open and instantly close this
+        menu in the same frame.
         """
         if event.type == pygame.KEYDOWN:
             if event.key in (pygame.K_UP, pygame.K_w):

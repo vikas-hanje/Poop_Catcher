@@ -1,7 +1,7 @@
 """
 Entry point. Window setup, game loop, FPS clock, toilet movement, spawner,
-collision/scoring, difficulty scaling, and a START / PLAYING / GAME_OVER
-state machine.
+collision/scoring, difficulty scaling, audio, and the game's state machine
+(START / PLAYING / PAUSED / GAME_OVER).
 """
 
 import sys
@@ -71,11 +71,9 @@ def main():
                 running = False
 
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                # Esc pauses/resumes during play, and quits from the start
-                # or game-over screens. Handled as its own branch (rather
-                # than falling through to the PAUSED routing below) so one
-                # Esc press can't both open and instantly close the pause
-                # menu in the same frame.
+                # Own branch rather than falling through to the PAUSED
+                # routing below, so one Esc press can't open and instantly
+                # close the pause menu in the same frame.
                 if state == "PLAYING":
                     state = "PAUSED"
                     audio.play_sfx("button_click")
@@ -129,26 +127,20 @@ def main():
                 state = "GAME_OVER"
                 audio.trigger_game_over_sequence()
 
-        # Background music follows the current state; play_music() no-ops if
-        # that's already what's playing, so calling this every frame is
-        # cheap and keeps things in sync after any state change. GAME_OVER
-        # is deliberately absent here — its music (silence, then the sting,
-        # then menu music) is driven entirely by trigger_game_over_sequence()
-        # and audio.update() above, not by per-frame state checks.
+        # Background music follows game state; play_music() no-ops if that
+        # track is already playing. GAME_OVER is handled separately by
+        # trigger_game_over_sequence()/audio.update() (silence -> sting ->
+        # menu music), and PAUSED intentionally does nothing here so
+        # gameplay music just keeps looping while paused.
         if state == "START":
             audio.play_music("menu")
         elif state == "PLAYING":
             audio.play_music("gameplay")
-        # PAUSED deliberately falls through untouched: whatever was already
-        # playing (gameplay music) just keeps looping in the background.
 
-        # Draw the scene every frame regardless of state, so items/toilet
-        # stay visible (frozen, or simply idle pre-game) behind the
-        # start / game-over overlays. Toilet drawn before the falling items
-        # so items visually pass in front of it (matches the lid-open art,
-        # where the bowl now sits "inside" the silhouette rather than on
-        # top of it) and catches read clearly instead of items vanishing
-        # behind the sprite.
+        # Drawn every frame regardless of state, so the scene stays visible
+        # (frozen, or idle pre-game) behind the start/pause/game-over
+        # overlays. Toilet drawn first so falling items render in front of
+        # it, matching the lid-open art.
         screen.blit(background, (0, 0))
         toilet.draw(screen)
         spawner.draw(screen)

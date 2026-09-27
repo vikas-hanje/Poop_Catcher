@@ -23,11 +23,8 @@ class AudioManager:
             self.enabled = False
 
         self.sfx = {}
-        # Each named sfx gets its own dedicated Channel (see _load_sfx). We
-        # always play through that channel rather than the generic
-        # Sound.play(), so a new catch_good retriggers cleanly instead of
-        # stacking on top of whatever copies of it are still ringing out —
-        # see play_sfx() for why that matters.
+        # Each named sfx gets its own dedicated Channel (see _load_sfx),
+        # so repeated triggers retrigger cleanly instead of stacking.
         self._sfx_channels = {}
 
         self._music_tracks = {
@@ -58,15 +55,8 @@ class AudioManager:
             "button_click": "button_click.wav",
         }
 
-        # A plain Sound.play() grabs a free channel from a shared pool, so
-        # during a catch flurry (e.g. high difficulty, several catches per
-        # second) many overlapping copies of the same sound end up mixed
-        # together — their waveforms add up and clip, which is the
-        # "distorted" sound at high traffic. Giving each sfx name its own
-        # reserved channel fixes this: playing on a channel that's already
-        # playing something immediately replaces it instead of layering on
-        # top, so you always hear one clean instance of a sound at a time,
-        # no matter how fast catches come in.
+        # Reserve one channel per sfx so repeated triggers replace rather
+        # than stack (stacking the same sound many times over clips/distorts).
         pygame.mixer.set_num_channels(max(pygame.mixer.get_num_channels(), 16))
         pygame.mixer.set_reserved(len(sfx_files))
 
@@ -98,13 +88,9 @@ class AudioManager:
 
     def toggle_music(self):
         """
-        Flips music playback on/off. Returns the new state.
-
-        Stops/resumes actual audio immediately, but keeps _current_music
-        pointing at the logical track the rest of the game thinks is
-        playing (e.g. "gameplay"), so turning music back on resumes the
-        right track instantly rather than waiting for the next state-driven
-        play_music() call.
+        Flips music playback on/off and returns the new state. Keeps
+        _current_music pointing at the logical track throughout, so
+        turning music back on resumes it immediately.
         """
         self.music_enabled = not self.music_enabled
         if self.music_enabled:
@@ -116,16 +102,10 @@ class AudioManager:
 
     def play_music(self, track):
         """
-        track: 'menu' or 'gameplay'. No-ops if that track is already the
-        logical current track. Silently remembers the track without making
-        sound if music is currently muted — toggle_music() will start it
-        audibly the moment it's unmuted.
-
-        Also cancels any in-progress game-over sequence (delayed sting, or
-        waiting for the sting to finish before starting menu music) — an
-        explicit switch means something else (e.g. a restart) has decided
-        what should be playing now, so a stale sting shouldn't fire late or
-        fight with it.
+        track: 'menu' or 'gameplay'. No-ops if already the current track.
+        Remembers the track silently if music is muted, and cancels any
+        in-progress game-over sting sequence — an explicit switch means
+        something else (e.g. a restart) has decided what plays now.
         """
         if not self.enabled:
             return

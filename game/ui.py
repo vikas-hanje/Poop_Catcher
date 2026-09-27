@@ -23,12 +23,14 @@ class HUD:
         )
 
     def _draw_panel(self, surface, rect, padding=12, radius=12, alpha=140):
+        """Semi-transparent rounded backing so HUD elements stay readable over the background."""
         panel_rect = rect.inflate(padding * 2, padding * 2)
         panel = pygame.Surface(panel_rect.size, pygame.SRCALPHA)
         pygame.draw.rect(panel, (0, 0, 0, alpha), panel.get_rect(), border_radius=radius)
         surface.blit(panel, panel_rect.topleft)
 
     def _draw_text_with_shadow(self, surface, font, text, color, pos, offset=2):
+        """Renders `text` with a small black drop-shadow for extra contrast."""
         shadow_surf = font.render(text, True, settings.BLACK)
         surface.blit(shadow_surf, (pos[0] + offset, pos[1] + offset))
         text_surf = font.render(text, True, color)

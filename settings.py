@@ -21,9 +21,7 @@ SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
 FPS = 60
 
-# Set to True while developing: launches a bordered window instead of true
-# fullscreen, which makes alt-tabbing / reading tracebacks much easier.
-# Flip to False for the "real" build.
+# True = bordered window (easier to debug/alt-tab). False = the real fullscreen build.
 DEV_MODE = True
 
 # --- Colors (fallback / debug use only, sprites carry the real look) ---
@@ -40,10 +38,9 @@ TOILET_HEIGHT = 280
 TOILET_SPEED = 900            # pixels per second
 TOILET_BOTTOM_MARGIN = 40     # gap between toilet sprite and bottom edge
 
-# The toilet sprite has its lid drawn open, so the top half of the image is
-# empty space above the bowl. Collision only counts against the bottom
-# portion of the sprite (the actual bowl) — this doesn't affect the drawn
-# image or the toilet's width/height, only where catches are detected.
+# Toilet art has its lid open, leaving empty space above the bowl. Only
+# this fraction of the sprite's height (from the bottom) counts for
+# collision — the drawn image itself is unaffected.
 TOILET_COLLISION_HEIGHT_RATIO = 0.4
 
 # --- Falling items (width, height) ---
